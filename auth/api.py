@@ -48,7 +48,6 @@ async def logout(current_user: UserDep, token: Annotated[str, Depends(oauth2_sch
 
 @router.get("/me/", response_model=UserRead)
 async def read_user_me(current_user: UserDep, db: SessionDep):
-    user = await read_me(db, current_user)
-    return UserRead.model_validate(user)
+    return await read_me(db, current_user)
 
 

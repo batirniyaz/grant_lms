@@ -3,7 +3,6 @@ from typing import Annotated, List
 
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload, selectinload
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -35,6 +34,7 @@ from auth.schema import (
 from backend.models.group_model import Group
 from config import SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 from db.get_db import SessionDep
+from db.orm_loads import admin_read_load_options, mentor_read_load_options, student_read_load_options
 from config import now_tashkent
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -180,12 +180,11 @@ async def create_admin(db: AsyncSession, admin_in: AdminCreate) -> AdminRead:
         db.add(user_obj)
         await db.flush()
 
-        admin_obj = Admin(user_id=user_obj.id)
+        admin_obj = Admin(user_id=user_obj.id, is_superadmin=admin_in.is_superadmin)
         db.add(admin_obj)
 
         await db.commit()
-        await db.refresh(admin_obj)
-        return AdminRead.model_validate(admin_obj)
+        return await get_admin(db, user_obj.id)
     except IntegrityError as e:
         await db.rollback()
         msg = str(e.orig) if hasattr(e, 'orig') else str(e)
@@ -200,8 +199,8 @@ async def create_admin(db: AsyncSession, admin_in: AdminCreate) -> AdminRead:
 async def get_admin(db: AsyncSession, admin_id: int) -> AdminRead:
     res = await db.execute(
         select(Admin)
-        .options(joinedload(Admin.user))
-        .filter_by(id=admin_id)
+        .options(*admin_read_load_options())
+        .filter_by(user_id=admin_id)
     )
     admin = res.scalars().first()
     if not admin:
@@ -212,7 +211,7 @@ async def get_admin(db: AsyncSession, admin_id: int) -> AdminRead:
 async def get_admins(db: AsyncSession, limit: int = 10, page: int = 1) -> list[AdminRead]:
     res = await db.execute(
         select(Admin)
-        .options(joinedload(Admin.user))
+        .options(*admin_read_load_options())
         .offset((page - 1) * limit)
         .limit(limit)
     )
@@ -221,7 +220,7 @@ async def get_admins(db: AsyncSession, limit: int = 10, page: int = 1) -> list[A
 
 
 async def delete_admin(db: AsyncSession, admin_id: int):
-    res = await db.execute(select(Admin).filter_by(id=admin_id))
+    res = await db.execute(select(Admin).filter_by(user_id=admin_id))
     admin = res.scalars().first()
     if not admin:
         raise HTTPException(status_code=404, detail="Admin not found")
@@ -263,8 +262,7 @@ async def create_student(db: AsyncSession, student_in: StudentCreate) -> Student
         )
         db.add(student_obj)
         await db.commit()
-        await db.refresh(student_obj)
-        return StudentRead.model_validate(student_obj)
+        return await get_student(db, user_obj.id)
     except IntegrityError as e:
         await db.rollback()
         msg = str(e.orig) if hasattr(e, 'orig') else str(e)
@@ -279,7 +277,7 @@ async def create_student(db: AsyncSession, student_in: StudentCreate) -> Student
 async def get_student(db: AsyncSession, student_id: int) -> StudentRead:
     res = await db.execute(
         select(Student)
-        .options(joinedload(Student.user))
+        .options(*student_read_load_options())
         .filter_by(user_id=student_id)
     )
     student = res.scalars().first()
@@ -291,7 +289,7 @@ async def get_student(db: AsyncSession, student_id: int) -> StudentRead:
 async def get_students(db: AsyncSession, limit: int = 10, page: int = 1) -> list[StudentRead]:
     res = await db.execute(
         select(Student)
-        .options(joinedload(Student.user))
+        .options(*student_read_load_options())
         .offset((page - 1) * limit)
         .limit(limit)
     )
@@ -323,8 +321,7 @@ async def update_student(db: AsyncSession, student_id: int, student_in: StudentU
         db.add(user)
         db.add(student)
         await db.commit()
-        await db.refresh(student)
-        return StudentRead.model_validate(student)
+        return await get_student(db, student_id)
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -367,11 +364,7 @@ async def create_mentor(db: AsyncSession, mentor_in: MentorCreate) -> MentorRead
 
         # assign groups if provided
         if mentor_in.group_ids:
-            await db.execute(
-                select(Group).where(Group.id.in_(mentor_in.group_ids))
-            )
             for gid in mentor_in.group_ids:
-                await db.execute(select(Group).filter_by(id=gid))
                 gres = await db.execute(select(Group).filter_by(id=gid))
                 g = gres.scalars().first()
                 if g:
@@ -379,8 +372,7 @@ async def create_mentor(db: AsyncSession, mentor_in: MentorCreate) -> MentorRead
                     db.add(g)
 
         await db.commit()
-        await db.refresh(mentor_obj)
-        return MentorRead.model_validate(mentor_obj)
+        return await get_mentor(db, mentor_obj.user_id)
     except IntegrityError as e:
         await db.rollback()
         msg = str(e.orig) if hasattr(e, 'orig') else str(e)
@@ -395,10 +387,7 @@ async def create_mentor(db: AsyncSession, mentor_in: MentorCreate) -> MentorRead
 async def get_mentor(db: AsyncSession, user_id: int) -> MentorRead:
     res = await db.execute(
         select(Mentor)
-        .options(
-            joinedload(Mentor.user),
-            selectinload(Mentor.groups).selectinload(Group.students).joinedload(Student.user)
-        )
+        .options(*mentor_read_load_options())
         .filter_by(user_id=user_id)
     )
     mentor = res.scalars().first()
@@ -441,8 +430,7 @@ async def update_mentor(db: AsyncSession, user_id: int, mentor_in: MentorUpdate)
         db.add(user)
         db.add(mentor)
         await db.commit()
-        await db.refresh(mentor)
-        return MentorRead.model_validate(mentor)
+        return await get_mentor(db, user_id)
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
@@ -474,10 +462,7 @@ async def delete_mentor(db: AsyncSession, user_id: int):
 async def get_mentors(db: AsyncSession, limit: int = 10, page: int = 1) -> list[MentorRead]:
     stmt = (
         select(Mentor)
-        .options(
-            joinedload(Mentor.user),
-            selectinload(Mentor.groups).selectinload(Group.students).joinedload(Student.user)
-        )
+        .options(*mentor_read_load_options())
         .limit(limit)
         .offset((page - 1) * limit)
     )
@@ -559,8 +544,7 @@ async def delete_user(db: AsyncSession, user_id: int):
 
 
 async def read_me(db: AsyncSession, current_user) -> UserRead:
-    user = await get_user_by_id(db, current_user['id'])
-    return UserRead.model_validate(user)
+    return await get_user_by_id(db, current_user['id'])
 
 
 async def get_monthly_score(db: AsyncSession, student_id: int, month: int, year: int) -> MonthlyScore:

@@ -1,22 +1,12 @@
 
 from backend.models import Group
 from backend.schemas import GroupCreate, GroupRead, GroupUpdate
-from auth.model import Mentor, User, UserRole, Student
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload, selectinload
 from fastapi import HTTPException, status
 
-
-def _group_load_options():
-    """Eager-load relations required by GroupRead / StudentRead (avoids async lazy-load 500)."""
-    return (
-        joinedload(Group.mentor).joinedload(Mentor.user),
-        selectinload(Group.students).joinedload(Student.user),
-        selectinload(Group.students).selectinload(Student.monthly_scores),
-        selectinload(Group.students).selectinload(Student.certificates),
-    )
+from db.orm_loads import group_read_load_options
 
 
 async def create_group(db: AsyncSession, group: GroupCreate) -> GroupRead:
@@ -41,7 +31,7 @@ async def create_group(db: AsyncSession, group: GroupCreate) -> GroupRead:
 async def get_group(db: AsyncSession, group_id: int) -> GroupRead:
     res = await db.execute(
         select(Group)
-        .options(*_group_load_options())
+        .options(*group_read_load_options())
         .filter_by(id=group_id)
     )
     group = res.scalars().first()
@@ -53,7 +43,7 @@ async def get_group(db: AsyncSession, group_id: int) -> GroupRead:
 async def get_groups(db: AsyncSession, limit: int = 10, page = 1) -> list[GroupRead]:
     res = await db.execute(
         select(Group)
-        .options(*_group_load_options())
+        .options(*group_read_load_options())
         .offset((page - 1) * limit)
         .limit(limit)
     )
