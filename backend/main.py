@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from db.base import create_db_and_tables
 from auth.superuser import create_superuser
-from backend import router
+from backend import get_main_router
 
 
 def _rebuild_schema_forward_refs() -> None:
@@ -41,4 +41,4 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],)
 
 
-app.include_router(router)
+app.include_router(get_main_router())
