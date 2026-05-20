@@ -36,3 +36,6 @@ async def update_group_route(db: SessionDep, group: GroupUpdate, group_id: int, 
 async def delete_group_route(db: SessionDep, group_id: int, user: AdminDep) -> bool:
     return await delete_group(db, group_id)
 
+
+
+
