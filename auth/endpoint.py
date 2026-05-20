@@ -1,22 +1,66 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+import os
+import shutil
+from typing import List
 
 from auth.model import UserRole
 from db.get_db import SessionDep
 from auth.schema import (
     UserRead, UserUpdateUnique, UserUpdatePassword, UserUpdateName,
     AdminCreate, AdminRead, StudentCreate, StudentRead, MentorCreate, MentorRead,
-    StudentUpdate, MentorUpdate
-
+    StudentUpdate, MentorUpdate, MonthlyScoreCreate, MonthlyScoreRead, MonthlyScoreUpdate,
+    CertificateRead, CertificateUpdateStatus
 )
 from auth.util import (
     update_user_name, update_user_unique, update_user_password, get_user_by_id,
     get_users, delete_user, UserDep, get_user_by_email, get_user_by_phone,
-    AdminDep, create_admin, create_student, create_mentor, get_admins, get_admin, delete_admin,
-    get_students, get_student, delete_student, get_mentors, get_mentor, delete_mentor, update_mentor, update_student
+    AdminDep, MentorDep, StudentDep, create_admin, create_student, create_mentor, 
+    get_admins, get_admin, delete_admin, get_students, get_student, delete_student, 
+    get_mentors, get_mentor, delete_mentor, update_mentor, update_student,
+    upsert_monthly_score_admin, update_tutor_score, create_certificate,
+    get_pending_certificates, update_certificate_status
 )
 
 
 router = APIRouter()
+
+UPLOAD_DIR = "uploads/certificates"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+@router.post("/monthly-score", response_model=MonthlyScoreRead)
+async def create_monthly_score_endpoint(score: MonthlyScoreCreate, current_user: AdminDep, db: SessionDep):
+    return await upsert_monthly_score_admin(db, score)
+
+
+@router.patch("/monthly-score/tutor", response_model=MonthlyScoreRead)
+async def update_tutor_score_endpoint(student_id: int, month: int, year: int, tutor_score: float, current_user: MentorDep, db: SessionDep):
+    return await update_tutor_score(db, student_id, month, year, tutor_score, current_user['id'])
+
+
+@router.post("/certificate/upload", response_model=CertificateRead)
+async def upload_certificate_endpoint(title: str, cert_type: str, current_user: UserDep, db: SessionDep, file: UploadFile = File(...)):
+    if current_user['role'] != 'student':
+        raise HTTPException(status_code=403, detail="Only students can upload certificates")
+    
+    file_extension = os.path.splitext(file.filename)[1]
+    file_name = f"cert_{current_user['id']}_{os.urandom(4).hex()}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, file_name)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return await create_certificate(db, current_user['id'], title, cert_type, file_path)
+
+
+@router.get("/certificate/pending", response_model=List[CertificateRead])
+async def get_pending_certificates_endpoint(current_user: AdminDep, db: SessionDep):
+    return await get_pending_certificates(db)
+
+
+@router.patch("/certificate/{cert_id}/status", response_model=CertificateRead)
+async def update_certificate_status_endpoint(cert_id: int, status_in: CertificateUpdateStatus, current_user: AdminDep, db: SessionDep):
+    return await update_certificate_status(db, cert_id, status_in)
 
 
 @router.post("/admin", response_model=AdminRead)

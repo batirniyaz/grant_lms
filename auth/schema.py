@@ -128,6 +128,9 @@ class StudentRead(UserRead):
     created_at: datetime.datetime = Field(..., description="The time the student was created")
     updated_at: datetime.datetime = Field(..., description="The time the student was updated")
 
+    monthly_scores: List["MonthlyScoreRead"] = Field(default_factory=list)
+    certificates: List["CertificateRead"] = Field(default_factory=list)
+
     @model_validator(mode='before')
     @classmethod
     def flatten_user(cls, data: Any) -> Any:
@@ -139,6 +142,92 @@ class StudentRead(UserRead):
         return data
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MonthlyScoreCreate(TashkentBaseModel):
+    student_id: int
+    month: int
+    year: int
+    academic_percent: Optional[float] = 0.0
+    attendance_percent: Optional[float] = 0.0
+    assignment_score: Optional[float] = 0.0
+    discipline_score: Optional[float] = 0.0
+    tutor_score: Optional[float] = 0.0
+    penalty_score: Optional[float] = 0.0
+    recovery_score: Optional[float] = 0.0
+    employment_score: Optional[float] = 0.0
+
+    model_config = ConfigDict(extra='forbid')
+
+
+class MonthlyScoreRead(MonthlyScoreCreate):
+    id: int
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MonthlyScoreUpdate(TashkentBaseModel):
+    academic_percent: Optional[float] = None
+    attendance_percent: Optional[float] = None
+    assignment_score: Optional[float] = None
+    discipline_score: Optional[float] = None
+    tutor_score: Optional[float] = None
+    penalty_score: Optional[float] = None
+    recovery_score: Optional[float] = None
+    employment_score: Optional[float] = None
+
+    model_config = ConfigDict(extra='forbid')
+
+
+class CertificateCreate(TashkentBaseModel):
+    title: str = Field(..., max_length=100)
+    cert_type: str = Field(..., description="Type of certificate from predefined list")
+
+class CertificateRead(TashkentBaseModel):
+    id: int
+    student_id: int
+    title: str
+    cert_type: str
+    file_path: str
+    status: str
+    points: float
+    created_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CertificateUpdateStatus(TashkentBaseModel):
+    status: str # 'approved' or 'rejected'
+
+    model_config = ConfigDict(extra='forbid')
+
+
+class LeaderboardRow(TashkentBaseModel):
+    student_name: str
+    group_name: Optional[str]
+    student_id: int
+    current_status: str # "Grant" or "Kontrakt"
+
+    academic_percent: float
+    academic_ball: float
+    attendance_percent: float
+    attendance_ball: float
+    assignment_ball: float
+    activity_ball: float
+    tutor_ball: float
+    discipline_ball: float
+
+    total_kpi: float
+    penalty: float
+    recovery: float
+    employment: float
+
+    final_score: float
+    next_status: str
+    risk: str
+
 
 
 class StudentUpdate(TashkentBaseModel):

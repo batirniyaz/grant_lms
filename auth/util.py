@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Annotated
+from typing import Annotated, List
 
 from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
@@ -12,7 +12,7 @@ from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.model import User, TokenBlacklist, Admin, Student, Mentor, UserRole
+from auth.model import User, TokenBlacklist, Admin, Student, Mentor, UserRole, MonthlyScore, Certificate, CertificateStatus
 from auth.schema import (
     TokenData,
     UserRead,
@@ -27,6 +27,10 @@ from auth.schema import (
     MentorCreate,
     MentorRead,
     MentorUpdate,
+    MonthlyScoreCreate,
+    MonthlyScoreRead,
+    CertificateRead,
+    CertificateUpdateStatus,
 )
 from backend.models.group_model import Group
 from config import SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -558,6 +562,105 @@ async def read_me(db: AsyncSession, current_user) -> UserRead:
     user = await get_user_by_id(db, current_user['id'])
     return UserRead.model_validate(user)
 
+
+async def get_monthly_score(db: AsyncSession, student_id: int, month: int, year: int) -> MonthlyScore:
+    res = await db.execute(
+        select(MonthlyScore).filter_by(student_id=student_id, month=month, year=year)
+    )
+    return res.scalars().first()
+
+
+async def upsert_monthly_score_admin(db: AsyncSession, score_in: MonthlyScoreCreate) -> MonthlyScoreRead:
+    score = await get_monthly_score(db, score_in.student_id, score_in.month, score_in.year)
+    if not score:
+        score = MonthlyScore(**score_in.model_dump())
+        db.add(score)
+    else:
+        for k, v in score_in.model_dump(exclude_unset=True).items():
+            setattr(score, k, v)
+    
+    try:
+        await db.commit()
+        await db.refresh(score)
+        return MonthlyScoreRead.model_validate(score)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def update_tutor_score(db: AsyncSession, student_id: int, month: int, year: int, tutor_score: float, mentor_id: int) -> MonthlyScoreRead:
+    # 1. Check if student exists
+    res = await db.execute(select(Student).filter_by(user_id=student_id))
+    student = res.scalars().first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    # 2. Check if mentor is assigned to student's group
+    if student.group_id:
+        res = await db.execute(select(Group).filter_by(id=student.group_id, mentor_id=mentor_id))
+        group = res.scalars().first()
+        if not group:
+            raise HTTPException(status_code=403, detail="You are not the mentor of this student's group")
+    else:
+        raise HTTPException(status_code=400, detail="Student is not assigned to any group")
+
+    # 3. Upsert tutor score
+    score = await get_monthly_score(db, student_id, month, year)
+    if not score:
+        score = MonthlyScore(student_id=student_id, month=month, year=year, tutor_score=tutor_score)
+        db.add(score)
+    else:
+        score.tutor_score = tutor_score
+        
+    try:
+        await db.commit()
+        await db.refresh(score)
+        return MonthlyScoreRead.model_validate(score)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def create_certificate(db: AsyncSession, student_id: int, title: str, cert_type: str, file_path: str) -> CertificateRead:
+    cert = Certificate(student_id=student_id, title=title, cert_type=cert_type, file_path=file_path)
+    db.add(cert)
+    try:
+        await db.commit()
+        await db.refresh(cert)
+        return CertificateRead.model_validate(cert)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def get_pending_certificates(db: AsyncSession) -> List[CertificateRead]:
+    res = await db.execute(select(Certificate).filter_by(status=CertificateStatus.PENDING))
+    certs = res.scalars().all()
+    return [CertificateRead.model_validate(c) for c in certs]
+
+
+async def update_certificate_status(db: AsyncSession, cert_id: int, status_in: CertificateUpdateStatus) -> CertificateRead:
+    from grant_config import CERT_POINTS
+    res = await db.execute(select(Certificate).filter_by(id=cert_id))
+    cert = res.scalars().first()
+    if not cert:
+        raise HTTPException(status_code=404, detail="Certificate not found")
+    
+    cert.status = CertificateStatus(status_in.status)
+    
+    # Automatically assign points if approved
+    if cert.status == CertificateStatus.APPROVED:
+        cert.points = CERT_POINTS.get(cert.cert_type, 1.0)
+    else:
+        cert.points = 0.0
+    
+    try:
+        await db.commit()
+        await db.refresh(cert)
+        return CertificateRead.model_validate(cert)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def role_required(*allowed_roles: str):

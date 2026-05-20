@@ -3,7 +3,7 @@ from typing import Optional, List, TYPE_CHECKING
 
 from pydantic import EmailStr
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import Integer, String, TIMESTAMP, ForeignKey, Enum as sql_Enum, Boolean
+from sqlalchemy import Integer, String, TIMESTAMP, ForeignKey, Enum as sql_Enum, Boolean, Float
 
 import datetime
 
@@ -14,11 +14,16 @@ if TYPE_CHECKING:
     from backend.models.group_model import Group
 
 
-
 class UserRole(enum_Enum):
     STUDENT = 'student'
     ADMIN = 'admin'
     MENTOR = 'mentor'
+
+
+class CertificateStatus(enum_Enum):
+    PENDING = 'pending'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
 
 
 class User(Base):
@@ -63,6 +68,8 @@ class Student(Base):
     group_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('group.id'), nullable=True)
     is_grant: Mapped[bool] = mapped_column(Boolean, default=False)
     course_number: Mapped[int] = mapped_column(Integer, default=1)
+    
+    # Summary fields (can be calculated or cached)
     attendance: Mapped[int] = mapped_column(Integer, default=0)
     academic: Mapped[int] = mapped_column(Integer, default=0)
     assignment: Mapped[int] = mapped_column(Integer, default=0)
@@ -71,10 +78,59 @@ class Student(Base):
     user: Mapped["User"] = relationship("User", back_populates="student")
     group: Mapped["Group"] = relationship("Group", back_populates="students")
     
+    monthly_scores: Mapped[List["MonthlyScore"]] = relationship(back_populates="student", cascade="all, delete-orphan")
+    certificates: Mapped[List["Certificate"]] = relationship(back_populates="student", cascade="all, delete-orphan")
+
     created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True),default=now_tashkent)
     updated_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True),default=now_tashkent,onupdate=now_tashkent)
+
+
+class MonthlyScore(Base):
+    __tablename__ = 'monthly_score'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey('student.user_id'))
+    month: Mapped[int] = mapped_column(Integer)  # 1-12
+    year: Mapped[int] = mapped_column(Integer)
     
+    # Points set by Admin
+    academic_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    attendance_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    assignment_score: Mapped[float] = mapped_column(Float, default=0.0)
+    discipline_score: Mapped[float] = mapped_column(Float, default=0.0)
     
+    # Points set by Mentor
+    tutor_score: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Other scores
+    penalty_score: Mapped[float] = mapped_column(Float, default=0.0)
+    recovery_score: Mapped[float] = mapped_column(Float, default=0.0)
+    employment_score: Mapped[float] = mapped_column(Float, default=0.0)
+
+    student: Mapped["Student"] = relationship(back_populates="monthly_scores")
+    
+    created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), default=now_tashkent)
+    updated_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), default=now_tashkent, onupdate=now_tashkent)
+
+
+class Certificate(Base):
+    __tablename__ = 'certificate'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey('student.user_id'))
+    
+    title: Mapped[str] = mapped_column(String(length=100))
+    cert_type: Mapped[str] = mapped_column(String(length=50)) # e.g., 'startup', 'ielts_6_5_plus'
+    file_path: Mapped[str] = mapped_column(String(length=255))
+    status: Mapped[CertificateStatus] = mapped_column(sql_Enum(CertificateStatus), default=CertificateStatus.PENDING)
+    points: Mapped[float] = mapped_column(Float, default=0.0) # Set automatically upon approval based on type
+
+    student: Mapped["Student"] = relationship(back_populates="certificates")
+
+    created_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), default=now_tashkent)
+    updated_at: Mapped[datetime.datetime] = mapped_column(TIMESTAMP(timezone=True), default=now_tashkent, onupdate=now_tashkent)
+    
+
 class Mentor(Base):
     __tablename__ = 'mentor'
     
