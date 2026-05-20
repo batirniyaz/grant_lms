@@ -4,12 +4,28 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from db.base import create_db_and_tables
+from auth.superuser import create_superuser
 from backend import router
+
+
+def _rebuild_schema_forward_refs() -> None:
+    """Resolve circular Pydantic forward refs (MentorRead <-> GroupRead)."""
+    from auth.schema import AdminRead, MentorRead, StudentRead
+    from backend.schemas.group_schema import GroupRead
+
+    GroupRead.model_rebuild()
+    AdminRead.model_rebuild()
+    StudentRead.model_rebuild()
+    MentorRead.model_rebuild()
+
+
+_rebuild_schema_forward_refs()
 
 
 @asynccontextmanager
 async def lifespan(main_app: FastAPI):
     await create_db_and_tables()
+    await create_superuser()
 
     yield
 
