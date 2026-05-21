@@ -4,6 +4,7 @@ import shutil
 from typing import List
 
 from auth.model import UserRole
+from backend.schemas import GroupRead
 from db.get_db import SessionDep
 from auth.schema import (
     UserRead, UserUpdateUnique, UserUpdatePassword, UserUpdateName,
@@ -22,7 +23,7 @@ from auth.util import (
 from auth.performance_service import (
     upsert_monthly_score_admin, update_monthly_score_admin, update_tutor_score,
     create_certificate, update_certificate_status, get_pending_certificates,
-    get_student_performance, get_student_certificates
+    get_student_performance, get_student_certificates, get_mentor_groups, get_mentor_students
 )
 
 
@@ -153,6 +154,16 @@ async def delete_mentor_endpoint(mentor_id: int, current_user: AdminDep, db: Ses
 @router.put("/mentor/{mentor_id}")
 async def update_mentor_endpoint(mentor_id: int, user: MentorUpdate, current_user: AdminDep, db: SessionDep):
     return await update_mentor(db, mentor_id, user)
+
+
+@router.get("/mentor/my-groups", response_model=List[GroupRead])
+async def get_my_groups_endpoint(current_user: MentorDep, db: SessionDep):
+    return await get_mentor_groups(db, current_user['id'])
+
+
+@router.get("/mentor/my-students", response_model=List[StudentRead])
+async def get_my_students_endpoint(current_user: MentorDep, db: SessionDep, group_id: int = None):
+    return await get_mentor_students(db, current_user['id'], group_id)
 
 
 @router.get("/", response_model=list[UserRead])

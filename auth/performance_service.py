@@ -153,3 +153,14 @@ async def get_student_certificates(db: AsyncSession, student_id: int) -> List[Ce
     res = await db.execute(select(Certificate).filter_by(student_id=uid))
     certs = res.scalars().all()
     return [CertificateRead.model_validate(c) for c in certs]
+
+async def get_mentor_groups(db: AsyncSession, mentor_id: int):
+    res = await db.execute(select(Group).filter_by(mentor_id=mentor_id))
+    return res.scalars().all()
+
+async def get_mentor_students(db: AsyncSession, mentor_id: int, group_id: int = None):
+    stmt = select(Student).join(Group).filter(Group.mentor_id == mentor_id)
+    if group_id:
+        stmt = stmt.filter(Student.group_id == group_id)
+    res = await db.execute(stmt.options(selectinload(Student.user)))
+    return res.scalars().all()
