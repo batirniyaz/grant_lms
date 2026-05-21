@@ -37,9 +37,10 @@ class GroupUpdate(TashkentBaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
-class GroupRead(GroupCreate):
+class GroupRead(TashkentBaseModel):
     id: int = Field(..., description="The ID of the group")
-    students: List["StudentRead"] = Field(default_factory=list, description="Students in the group")
+    group_number: str = Field(..., description="The group number")
+    mentor_id: Optional[int] = Field(None, description="The ID of the mentor")
     created_at: datetime.datetime = Field(..., description="The time the group was created")
     updated_at: datetime.datetime = Field(..., description="The time the group was updated")
 

@@ -136,9 +136,16 @@ class StudentRead(UserRead):
     def flatten_user(cls, data: Any) -> Any:
         if hasattr(data, 'user_id'):
             setattr(data, 'id', data.user_id)
-        if hasattr(data, 'user') and data.user:
-            for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
-                setattr(data, field, getattr(data.user, field))
+        
+        # Check if 'user' is loaded without triggering a lazy load
+        from sqlalchemy.orm import attributes
+        if attributes.instance_state(data).committed_state.get('user') is not None or \
+           (hasattr(data, 'user') and data.user is not None):
+            user = getattr(data, 'user', None)
+            if user:
+                for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
+                    if hasattr(user, field):
+                        setattr(data, field, getattr(user, field))
         return data
 
     model_config = ConfigDict(from_attributes=True)
@@ -262,9 +269,16 @@ class MentorRead(UserRead):
     def flatten_user(cls, data: Any) -> Any:
         if hasattr(data, 'user_id'):
             setattr(data, 'id', data.user_id)
-        if hasattr(data, 'user') and data.user:
-            for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
-                setattr(data, field, getattr(data.user, field))
+        
+        # Check if 'user' is loaded without triggering a lazy load
+        from sqlalchemy.orm import attributes
+        if attributes.instance_state(data).committed_state.get('user') is not None or \
+           (hasattr(data, 'user') and data.user is not None):
+            user = getattr(data, 'user', None)
+            if user:
+                for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
+                    if hasattr(user, field):
+                        setattr(data, field, getattr(user, field))
         return data
 
     model_config = ConfigDict(from_attributes=True)
