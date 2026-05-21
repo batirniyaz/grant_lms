@@ -126,6 +126,21 @@ async def get_pending_certificates(db: AsyncSession) -> List[CertificateRead]:
     certs = res.scalars().all()
     return [CertificateRead.model_validate(c) for c in certs]
 
+async def get_confirmed_certificates(db: AsyncSession) -> List[CertificateRead]:
+    res = await db.execute(select(Certificate).filter_by(status=CertificateStatus.APPROVED))
+    certs = res.scalars().all()
+    return [CertificateRead.model_validate(c) for c in certs]
+
+async def get_rejected_certificates(db: AsyncSession) -> List[CertificateRead]:
+    res = await db.execute(select(Certificate).filter_by(status=CertificateStatus.REJECTED))
+    certs = res.scalars().all()
+    return [CertificateRead.model_validate(c) for c in certs]
+
+async def get_all_certificates(db: AsyncSession) -> List[CertificateRead]:
+    res = await db.execute(select(Certificate))
+    certs = res.scalars().all()
+    return [CertificateRead.model_validate(c) for c in certs]
+
 async def get_student_performance(db: AsyncSession, student_id: int) -> List[MonthlyScoreRead]:
     # 1. Resolve student (could be user_id or business student_id)
     res = await db.execute(

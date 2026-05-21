@@ -23,7 +23,9 @@ from auth.util import (
 from auth.performance_service import (
     upsert_monthly_score_admin, update_monthly_score_admin, update_tutor_score,
     create_certificate, update_certificate_status, get_pending_certificates,
-    get_student_performance, get_student_certificates, get_mentor_groups, get_mentor_students
+    get_student_performance, get_student_certificates, get_mentor_groups, 
+    get_mentor_students, get_confirmed_certificates, get_rejected_certificates,
+    get_all_certificates
 )
 
 
@@ -69,6 +71,21 @@ async def upload_certificate_endpoint(title: str, cert_type: str, current_user: 
 @router.get("/certificate/pending", response_model=List[CertificateRead])
 async def get_pending_certificates_endpoint(current_user: AdminDep, db: SessionDep):
     return await get_pending_certificates(db)
+
+
+@router.get("/certificate/confirmed", response_model=List[CertificateRead])
+async def get_confirmed_certificates_endpoint(current_user: AdminDep, db: SessionDep):
+    return await get_confirmed_certificates(db)
+
+
+@router.get("/certificate/rejected", response_model=List[CertificateRead])
+async def get_rejected_certificates_endpoint(current_user: AdminDep, db: SessionDep):
+    return await get_rejected_certificates(db)
+
+
+@router.get("/certificate/all", response_model=List[CertificateRead])
+async def get_all_certificates_endpoint(current_user: AdminDep, db: SessionDep):
+    return await get_all_certificates(db)
 
 
 @router.get("/my-certificates", response_model=List[CertificateRead])
