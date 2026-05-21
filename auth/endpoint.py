@@ -49,7 +49,7 @@ async def update_monthly_score_endpoint(score_id: int, score_in: MonthlyScoreUpd
 
 
 @router.patch("/monthly-score/tutor", response_model=MonthlyScoreRead)
-async def update_tutor_score_endpoint(student_id: int, month: int, year: int, tutor_score: float, current_user: MentorDep, db: SessionDep):
+async def update_tutor_score_endpoint(student_id: int, month: int, year: int, tutor_score: float, current_user: UserDep, db: SessionDep):
     return await update_tutor_score(db, student_id, month, year, tutor_score, current_user['id'])
 
 
