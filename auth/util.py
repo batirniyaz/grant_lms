@@ -29,7 +29,7 @@ from auth.schema import (
     MonthlyScoreCreate,
     MonthlyScoreRead,
     CertificateRead,
-    CertificateUpdateStatus,
+    CertificateUpdateStatus, MonthlyScoreUpdate,
 )
 from backend.models.group_model import Group
 from config import SECRET, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -565,6 +565,29 @@ async def upsert_monthly_score_admin(db: AsyncSession, score_in: MonthlyScoreCre
     
     try:
         await db.commit()
+        from db.redis_cache import invalidate_leaderboard
+        await invalidate_leaderboard()
+        await db.refresh(score)
+        return MonthlyScoreRead.model_validate(score)
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def update_monthly_score_admin(db: AsyncSession, score_id: int, score_in: MonthlyScoreUpdate) -> MonthlyScoreRead:
+    res = await db.execute(select(MonthlyScore).filter_by(id=score_id))
+    score = res.scalars().first()
+    if not score:
+        raise HTTPException(status_code=404, detail="Score record not found")
+    
+    for k, v in score_in.model_dump(exclude_unset=True).items():
+        if v is not None:
+            setattr(score, k, v)
+            
+    try:
+        await db.commit()
+        from db.redis_cache import invalidate_leaderboard
+        await invalidate_leaderboard()
         await db.refresh(score)
         return MonthlyScoreRead.model_validate(score)
     except Exception as e:
@@ -598,6 +621,8 @@ async def update_tutor_score(db: AsyncSession, student_id: int, month: int, year
         
     try:
         await db.commit()
+        from db.redis_cache import invalidate_leaderboard
+        await invalidate_leaderboard()
         await db.refresh(score)
         return MonthlyScoreRead.model_validate(score)
     except Exception as e:
@@ -610,6 +635,8 @@ async def create_certificate(db: AsyncSession, student_id: int, title: str, cert
     db.add(cert)
     try:
         await db.commit()
+        from db.redis_cache import invalidate_leaderboard
+        await invalidate_leaderboard()
         await db.refresh(cert)
         return CertificateRead.model_validate(cert)
     except Exception as e:
@@ -640,6 +667,8 @@ async def update_certificate_status(db: AsyncSession, cert_id: int, status_in: C
     
     try:
         await db.commit()
+        from db.redis_cache import invalidate_leaderboard
+        await invalidate_leaderboard()
         await db.refresh(cert)
         return CertificateRead.model_validate(cert)
     except Exception as e:

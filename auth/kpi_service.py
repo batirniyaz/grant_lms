@@ -26,7 +26,7 @@ async def calculate_student_kpi(student: Student) -> LeaderboardRow:
             assignment_ball=0, activity_ball=0,
             tutor_ball=0, discipline_ball=0,
             total_kpi=0, penalty=0, recovery=0, employment=0,
-            final_score=0, next_status=STATUS_CANCELLED_LOW_SCORE, risk="Yuqori (High)"
+            final_score=0, next_status=STATUS_CANCELLED_LOW_SCORE, risk="Low Chance"
         )
 
     avg_academic_pct = sum(m.academic_percent for m in monthly_scores) / count
@@ -115,4 +115,5 @@ async def get_leaderboard_data(db: AsyncSession) -> List[LeaderboardRow]:
         
     # Sort by final score descending
     leaderboard.sort(key=lambda x: x.final_score, reverse=True)
+    
     return leaderboard

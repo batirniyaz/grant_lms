@@ -18,7 +18,7 @@ from auth.util import (
     get_admins, get_admin, delete_admin, get_students, get_student, delete_student, 
     get_mentors, get_mentor, delete_mentor, update_mentor, update_student,
     upsert_monthly_score_admin, update_tutor_score, create_certificate,
-    get_pending_certificates, update_certificate_status
+    get_pending_certificates, update_certificate_status, update_monthly_score_admin
 )
 
 
@@ -31,6 +31,11 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/monthly-score", response_model=MonthlyScoreRead)
 async def create_monthly_score_endpoint(score: MonthlyScoreCreate, current_user: AdminDep, db: SessionDep):
     return await upsert_monthly_score_admin(db, score)
+
+
+@router.patch("/monthly-score/{score_id}", response_model=MonthlyScoreRead)
+async def update_monthly_score_endpoint(score_id: int, score_in: MonthlyScoreUpdate, current_user: AdminDep, db: SessionDep):
+    return await update_monthly_score_admin(db, score_id, score_in)
 
 
 @router.patch("/monthly-score/tutor", response_model=MonthlyScoreRead)
