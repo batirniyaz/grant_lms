@@ -1,0 +1,22 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: grant_lms_redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  api:
+    build: .
+    container_name: grant_lms_api
+    restart: always
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+    volumes:
+      - ./uploads:/app/uploads
