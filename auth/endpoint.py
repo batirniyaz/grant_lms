@@ -111,7 +111,7 @@ async def get_students_endpoint(current_user: AdminDep, db: SessionDep, limit: i
 
 
 @router.get("/student/{student_id}", response_model=StudentRead)
-async def get_student_endpoint(student_id: int, current_user: AdminDep, db: SessionDep):
+async def get_student_endpoint(student_id: int, current_user: UserDep, db: SessionDep):
     return await get_student(db, student_id)
 
 
@@ -141,7 +141,7 @@ async def get_mentors_endpoint(current_user: AdminDep, db: SessionDep, limit: in
 
 
 @router.get("/mentor/{mentor_id}", response_model=MentorRead)
-async def get_mentor_endpoint(mentor_id: int, current_user: AdminDep, db: SessionDep):
+async def get_mentor_endpoint(mentor_id: int, current_user: UserDep, db: SessionDep):
     return await get_mentor(db, mentor_id)
 
 
