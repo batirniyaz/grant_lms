@@ -156,16 +156,6 @@ async def update_mentor_endpoint(mentor_id: int, user: MentorUpdate, current_use
     return await update_mentor(db, mentor_id, user)
 
 
-@router.get("/mentor/my-groups", response_model=List[GroupRead])
-async def get_my_groups_endpoint(current_user: MentorDep, db: SessionDep):
-    return await get_mentor_groups(db, current_user['id'])
-
-
-@router.get("/mentor/my-students", response_model=List[StudentRead])
-async def get_my_students_endpoint(current_user: MentorDep, db: SessionDep, group_id: int = None):
-    return await get_mentor_students(db, current_user['id'], group_id)
-
-
 @router.get("/", response_model=list[UserRead])
 async def get_users_endpoint(current_user: UserDep, db: SessionDep, limit: int = 10, page: int = 1, role: UserRole = None):
     return await get_users(db, limit=limit, page=page, role=role if role else None)
