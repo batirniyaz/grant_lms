@@ -4,6 +4,8 @@ from sqlalchemy.future import select
 from fastapi import HTTPException
 from typing import List
 
+from sqlalchemy.orm import selectinload
+
 from auth.model import MonthlyScore, Student, Certificate, CertificateStatus
 from auth.schema import MonthlyScoreCreate, MonthlyScoreRead, MonthlyScoreUpdate, CertificateRead, CertificateUpdateStatus
 from backend.models.group_model import Group

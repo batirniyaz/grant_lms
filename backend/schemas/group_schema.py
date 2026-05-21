@@ -1,4 +1,4 @@
-from pydantic import Field, ConfigDict, field_validator
+from pydantic import Field, ConfigDict, field_validator, model_validator
 from typing import Optional, List, TYPE_CHECKING, Any
 import datetime
 
@@ -37,10 +37,13 @@ class GroupUpdate(TashkentBaseModel):
     model_config = ConfigDict(extra='forbid')
 
 
-class GroupRead(TashkentBaseModel):
+from backend.schemas.student_slim import StudentReadSlim
+
+# ...
+
+class GroupRead(GroupCreate):
     id: int = Field(..., description="The ID of the group")
-    group_number: str = Field(..., description="The group number")
-    mentor_id: Optional[int] = Field(None, description="The ID of the mentor")
+    students: List["StudentReadSlim"] = Field(default_factory=list, description="Students in the group")
     created_at: datetime.datetime = Field(..., description="The time the group was created")
     updated_at: datetime.datetime = Field(..., description="The time the group was updated")
 

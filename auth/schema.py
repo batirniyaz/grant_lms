@@ -137,15 +137,17 @@ class StudentRead(UserRead):
         if hasattr(data, 'user_id'):
             setattr(data, 'id', data.user_id)
         
-        # Check if 'user' is loaded without triggering a lazy load
-        from sqlalchemy.orm import attributes
-        if attributes.instance_state(data).committed_state.get('user') is not None or \
-           (hasattr(data, 'user') and data.user is not None):
-            user = getattr(data, 'user', None)
-            if user:
-                for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
-                    if hasattr(user, field):
-                        setattr(data, field, getattr(user, field))
+        # Only check the __dict__ directly, bypassing SQLAlchemy attribute protocols
+        # which trigger lazy loading.
+        if isinstance(data, dict):
+             user = data.get('user')
+        else:
+             user = getattr(data, '__dict__', {}).get('user', None)
+
+        if user:
+            for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
+                if hasattr(user, field):
+                    setattr(data, field, getattr(user, field))
         return data
 
     model_config = ConfigDict(from_attributes=True)
@@ -270,15 +272,17 @@ class MentorRead(UserRead):
         if hasattr(data, 'user_id'):
             setattr(data, 'id', data.user_id)
         
-        # Check if 'user' is loaded without triggering a lazy load
-        from sqlalchemy.orm import attributes
-        if attributes.instance_state(data).committed_state.get('user') is not None or \
-           (hasattr(data, 'user') and data.user is not None):
-            user = getattr(data, 'user', None)
-            if user:
-                for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
-                    if hasattr(user, field):
-                        setattr(data, field, getattr(user, field))
+        # Only check the __dict__ directly, bypassing SQLAlchemy attribute protocols
+        # which trigger lazy loading.
+        if isinstance(data, dict):
+             user = data.get('user')
+        else:
+             user = getattr(data, '__dict__', {}).get('user', None)
+
+        if user:
+            for field in ['phone', 'email', 'first_name', 'last_name', 'father_name', 'role']:
+                if hasattr(user, field):
+                    setattr(data, field, getattr(user, field))
         return data
 
     model_config = ConfigDict(from_attributes=True)
