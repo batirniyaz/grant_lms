@@ -17,9 +17,16 @@ from auth.util import (
     AdminDep, MentorDep, StudentDep, create_admin, create_student, create_mentor, 
     get_admins, get_admin, delete_admin, get_students, get_student, delete_student, 
     get_mentors, get_mentor, delete_mentor, update_mentor, update_student,
-    upsert_monthly_score_admin, update_tutor_score, create_certificate,
-    get_pending_certificates, update_certificate_status, update_monthly_score_admin
+    get_current_user
 )
+from auth.performance_service import (
+    upsert_monthly_score_admin, update_monthly_score_admin, update_tutor_score,
+    create_certificate, update_certificate_status, get_pending_certificates,
+    get_student_performance, get_student_certificates
+)
+
+
+
 
 
 router = APIRouter()
@@ -61,6 +68,11 @@ async def upload_certificate_endpoint(title: str, cert_type: str, current_user: 
 @router.get("/certificate/pending", response_model=List[CertificateRead])
 async def get_pending_certificates_endpoint(current_user: AdminDep, db: SessionDep):
     return await get_pending_certificates(db)
+
+
+@router.get("/my-certificates", response_model=List[CertificateRead])
+async def get_my_certificates_endpoint(current_user: UserDep, db: SessionDep):
+    return await get_student_certificates(db, current_user['id'])
 
 
 @router.patch("/certificate/{cert_id}/status", response_model=CertificateRead)
@@ -106,6 +118,11 @@ async def get_student_endpoint(student_id: int, current_user: AdminDep, db: Sess
 @router.put("/student/{student_id}")
 async def update_student_endpoint(student_id: int, user: StudentUpdate, current_user: AdminDep, db: SessionDep):
     return await update_student(db, student_id, user)
+
+
+@router.get("/student/{student_id}/performance", response_model=List[MonthlyScoreRead])
+async def get_student_performance_endpoint(student_id: int, current_user: UserDep, db: SessionDep):
+    return await get_student_performance(db, student_id)
 
 
 @router.delete("/student/{student_id}")

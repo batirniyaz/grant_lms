@@ -96,7 +96,7 @@ async def calculate_student_kpi(student: Student) -> LeaderboardRow:
         risk=risk
     )
 
-async def get_leaderboard_data(db: AsyncSession) -> List[LeaderboardRow]:
+async def get_leaderboard_data(db: AsyncSession, limit: int = None, page: int = 1) -> List[LeaderboardRow]:
     result = await db.execute(
         select(Student)
         .options(
@@ -116,4 +116,10 @@ async def get_leaderboard_data(db: AsyncSession) -> List[LeaderboardRow]:
     # Sort by final score descending
     leaderboard.sort(key=lambda x: x.final_score, reverse=True)
     
+    # Manual pagination after calculation
+    if limit:
+        start = (page - 1) * limit
+        end = start + limit
+        return leaderboard[start:end]
+        
     return leaderboard
