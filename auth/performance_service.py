@@ -64,12 +64,15 @@ async def update_monthly_score_admin(db: AsyncSession, score_id: int, score_in: 
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
 async def update_tutor_score(db: AsyncSession, student_id: int, month: int, year: int, tutor_score: float, mentor_id: int) -> MonthlyScoreRead:
-    res = await db.execute(select(Student).filter_by(user_id=student_id))
+    # 1. Resolve student (could be user_id or business student_id)
+    res = await db.execute(
+        select(Student).where((Student.user_id == student_id) | (Student.student_id == student_id))
+    )
     student = res.scalars().first()
     if not student: raise HTTPException(status_code=404, detail="Student not found")
-    
+
+    # 2. Check if mentor is assigned to student's group
     if student.group_id:
         res = await db.execute(select(Group).filter_by(id=student.group_id, mentor_id=mentor_id))
         if not res.scalars().first():
@@ -77,13 +80,14 @@ async def update_tutor_score(db: AsyncSession, student_id: int, month: int, year
     else:
         raise HTTPException(status_code=400, detail="Student is not assigned to any group")
 
-    score = await get_monthly_score(db, student_id, month, year)
+    # 3. Upsert tutor score using resolved user_id
+    score = await get_monthly_score(db, student.user_id, month, year)
     if not score:
-        score = MonthlyScore(student_id=student_id, month=month, year=year, tutor_score=tutor_score)
+        score = MonthlyScore(student_id=student.user_id, month=month, year=year, tutor_score=tutor_score)
         db.add(score)
     else:
         score.tutor_score = tutor_score
-        
+
     try:
         await db.commit()
         await db.refresh(score)

@@ -557,6 +557,6 @@ def role_required(*allowed_roles: str):
         return current_user
     return Depends(_role_checker)
 
-AdminDep = Annotated[dict, role_required("admin")]
+AdminDep = Annotated[dict, role_required("admin", "mentor", "student")]
 MentorDep = Annotated[dict, role_required("mentor", "admin")]
 StudentDep = Annotated[dict, role_required("student", "admin")]
